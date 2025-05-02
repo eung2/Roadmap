@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>로드맵 그리기</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    input, textarea { margin: 5px; padding: 5px; }
+    table { margin-top: 20px; border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+    th { background-color: #f0f0f0; }
+    #goalMessage { font-weight: bold; color: green; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>📍 로드맵 그리기</h1>
+  <label> 시작 년도: <input type="number" id="startYear" value="2023"> </label><br>
+  <label> 시작 나이: <input type="number" id="startAge" value="27"> </label><br>
+  <label> 끝 나이: <input type="number" id="endAge" value="60"> </label><br>
+  <label> 초기 자산 (만원): <input type="number" id="initial" value="5500"> </label><br>
+  <label> 저축액 (만원/월): <input type="number" id="saving" value="100"> </label><br>
+  <label> 평상시 수익률 (%): <input type="number" id="normalRate" value="8"> </label><br>
+  <label> 경제위기 수익률 (%): <input type="number" id="crisisRate" value="50"> </label><br>
+  <label> 경제위기 발생 연도 (쉼표로): <input type="text" id="crisisYears" value="2024,2025,2034,2035,2044"> </label><br>
+  <label> 목표 자산 (만원): <input type="number" id="goalAsset" value="50000"> </label><br>
+  <label> 인생 목표 (예: 결혼:31, 은퇴:60): <input type="text" id="lifeGoals" value="결혼:31, 집구입:36"> </label><br>
+  <button onclick="runSimulation()">계산하기</button>
+
+  <div id="goalMessage"></div>
+  <canvas id="assetChart" width="800" height="300"></canvas>
+  <table id="resultTable"></table>
+
+  <script>
+function formatWon(value) {
+  value = Math.round(value);
+  const eok = Math.floor(value / 10000);
+  const man = value % 10000;
+  if (eok > 0 && man === 0) {
+    return `${eok}억`;
+  } else if (eok > 0) {
+    return `${eok}억${man}만원`;
+  } else {
+    return `${man}만원`;
+  }
+}
+
+let chart;
+
+function runSimulation() {
+  const startYear = parseInt(document.getElementById('startYear').value);
+  const startAge = parseInt(document.getElementById('startAge').value);
+  const endAge = parseInt(document.getElementById('endAge').value);
+  const endYear = startYear + (endAge - startAge);
+  const initial = parseFloat(document.getElementById('initial').value);
+  const saving = parseFloat(document.getElementById('saving').value) * 12; // 월 입력 → 연으로 계산
+  const normalRate = parseFloat(document.getElementById('normalRate').value) / 100;
+  const crisisRate = parseFloat(document.getElementById('crisisRate').value) / 100;
+  const crisisYears = document.getElementById('crisisYears').value.split(',').map(y => parseInt(y.trim()));
+  const goalAsset = parseFloat(document.getElementById('goalAsset').value);
+  const lifeGoalInput = document.getElementById('lifeGoals').value;
+
+  const lifeGoalMap = {};
+  lifeGoalInput.split(',').forEach(pair => {
+    const [name, age] = pair.trim().split(':');
+    if (name && age) lifeGoalMap[parseInt(age.trim())] = name.trim();
+  });
+
+  let currentAsset = initial;
+  let tableHTML = `<tr><th>나이</th><th>년도</th><th>위기?</th><th>수익률</th><th>저축액</th><th>총 자산</th><th>인생 목표</th></tr>`;
+
+  const years = [];
+  const assets = [];
+  const pointColors = [];
+  const tooltips = [];
+  let goalReached = false;
+  let goalYear = null;
+  let goalAge = null;
+
+  for (let year = startYear, age = startAge; age <= endAge; year++, age++) {
+    const isCrisis = crisisYears.includes(year);
+    const isLifeGoal = lifeGoalMap.hasOwnProperty(age);
+    const rate = isCrisis ? crisisRate : normalRate;
+    currentAsset = currentAsset * (1 + rate) + saving;
+
+    if (!goalReached && currentAsset >= goalAsset) {
+      goalReached = true;
+      goalYear = year;
+      goalAge = age;
+    }
+
+    tableHTML += `<tr>
+      <td>${age}</td>
+      <td>${year}</td>
+      <td>${isCrisis ? '💣' : ''}</td>
+      <td>${(rate * 100).toFixed(2)}%</td>
+      <td>${formatWon(saving)}</td>
+      <td>${formatWon(currentAsset)}</td>
+      <td>${isLifeGoal ? '⭐ ' + lifeGoalMap[age] : ''}</td>
+    </tr>`;
+
+    years.push(year);
+    assets.push(currentAsset);
+
+    if (goalReached && year === goalYear) {
+      pointColors.push('green');
+      tooltips.push(`🎯 목표 자산 ${formatWon(goalAsset)}을 ${goalYear}년 (${goalAge}세)에 달성`);
+    } else if (isLifeGoal) {
+      pointColors.push('gold');
+      tooltips.push(`⭐ ${lifeGoalMap[age]} (${year}년, ${age}세)`);
+    } else if (isCrisis) {
+      pointColors.push('red');
+      tooltips.push(`💣 경제위기 (${year}년)`);
+    } else {
+      pointColors.push('rgba(54, 162, 235, 1)');
+      tooltips.push(null);
+    }
+  }
+
+  document.getElementById('resultTable').innerHTML = tableHTML;
+
+  const msg = goalReached ? `🎯 목표 자산 ${formatWon(goalAsset)}을 ${goalYear}년 (${goalAge}세)에 달성했습니다!`
+                           : `아쉽게도 ${endYear}년까지 목표 자산을 달성하지 못했습니다.`;
+  document.getElementById('goalMessage').innerText = msg;
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('assetChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [{
+        label: '총 자산 (만원)',
+        data: assets,
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'transparent',
+        pointBackgroundColor: pointColors,
+        pointRadius: 5,
+        borderWidth: 2,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      },
+      plugins: {
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            title: function(ctx) {
+              return `${ctx[0].label}년`;
+            },
+            label: function(ctx) {
+              const value = formatWon(ctx.raw);
+              const extra = tooltips[ctx.dataIndex];
+              if (extra) {
+                return [`${extra}`, `총 자산: ${value}`];
+              } else {
+                return `총 자산: ${value}`;
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+}
+  </script>
+</body>
+</html>
