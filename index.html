@@ -1,173 +1,332 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>로드맵 그리기</title>
+  <title>The Wealth Master Roadmap v5.2</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
-    body { font-family: sans-serif; margin: 40px; }
-    input, textarea { margin: 5px; padding: 5px; }
-    table { margin-top: 20px; border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
-    th { background-color: #f0f0f0; }
-    #goalMessage { font-weight: bold; color: green; margin-top: 20px; }
+    :root { --primary: #4f46e5; --bg: #f3f4f6; --card: #ffffff; --text: #1e293b; --accent: #f59e0b; --danger: #ef4444; --success: #10b981; --blue: #3b82f6; --placeholder: #94a3b8; }
+    body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
+    .container { display: grid; grid-template-columns: 460px 1fr; gap: 25px; max-width: 1600px; width: 100%; }
+    
+    .sidebar { background: var(--card); padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); height: fit-content; position: sticky; top: 20px; overflow-y: auto; max-height: 95vh; }
+    h1 { font-size: 1.5rem; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
+    h2 { font-size: 1rem; margin: 25px 0 15px; color: #475569; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .tooltip { position: relative; display: inline-block; cursor: help; margin-left: 5px; color: #94a3b8; font-size: 0.95rem; font-weight: normal; }
+    .tooltip .tooltiptext { visibility: hidden; width: 240px; background-color: #334155; color: #fff; text-align: center; border-radius: 8px; padding: 10px; position: absolute; z-index: 10; bottom: 125%; left: 50%; margin-left: -120px; opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; line-height: 1.5; font-weight: 400; box-shadow: 0 5px 15px rgba(0,0,0,0.2); pointer-events: none; }
+    .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+    .input-group { margin-bottom: 15px; }
+    label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; color: #64748b; }
+    input { width: 100%; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; box-sizing: border-box; transition: 0.2s; }
+    input::placeholder { color: var(--placeholder); opacity: 0.6; }
+    input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    
+    .slider-container { background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    input[type="range"] { accent-color: var(--primary); cursor: pointer; }
+
+    .dynamic-item { background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 10px; position: relative; border: 1px solid #e2e8f0; }
+    .remove-btn { position: absolute; right: 10px; top: 10px; cursor: pointer; color: #cbd5e1; font-weight: bold; border: none; background: none; }
+    .btn-add { background: white; color: var(--primary); border: 1.5px dashed var(--primary); padding: 8px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: 700; }
+
+    .main-content { display: flex; flex-direction: column; gap: 20px; min-height: 800px; padding: 10px; border-radius: 24px; }
+    .card-panel { background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    #emptyState { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; color: #94a3b8; text-align: center; }
+    
+    #goalSummary { display: none; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+    .goal-badge { padding: 15px; border-radius: 15px; background: #f0fdf4; border: 1px solid #dcfce7; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+    .goal-badge h3 { margin: 0 0 5px; font-size: 0.85rem; color: #166534; }
+    .goal-badge p { margin: 0; font-weight: 800; color: var(--success); font-size: 0.95rem; line-height: 1.4; }
+
+    .chart-container { height: 450px; display: none; margin-bottom: 10px; }
+    .table-wrapper { display: none; overflow-x: auto; max-height: 600px; border-radius: 15px; border: 1px solid #e2e8f0; background: white; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { position: sticky; top: 0; background: #f8fafc; padding: 12px; border-bottom: 2px solid #e2e8f0; font-weight: 800; }
+    td { padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+    
+    .btn-save { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; cursor: pointer; width: 100%; font-weight: 800; font-size: 1.1rem; margin-top: 30px; transition: 0.2s; }
+    .btn-save:hover { background: #4338ca; transform: translateY(-2px); }
+
+    /* 연도 열 마우스 오버 가이드 */
+    .year-cell { cursor: pointer; transition: background 0.2s; position: relative; }
+    .year-cell:hover { background: #eef2ff; text-decoration: underline; }
   </style>
 </head>
 <body>
-  <h1>📍 로드맵 그리기</h1>
-  <label> 시작 년도: <input type="number" id="startYear" value="2023"> </label><br>
-  <label> 시작 나이: <input type="number" id="startAge" value="27"> </label><br>
-  <label> 끝 나이: <input type="number" id="endAge" value="60"> </label><br>
-  <label> 초기 자산 (만원): <input type="number" id="initial" value="5500"> </label><br>
-  <label> 저축액 (만원/월): <input type="number" id="saving" value="100"> </label><br>
-  <label> 평상시 수익률 (%): <input type="number" id="normalRate" value="8"> </label><br>
-  <label> 경제위기 수익률 (%): <input type="number" id="crisisRate" value="50"> </label><br>
-  <label> 경제위기 발생 연도 (쉼표로): <input type="text" id="crisisYears" value="2024,2025,2034,2035,2044"> </label><br>
-  <label> 목표 자산 (만원): <input type="number" id="goalAsset" value="50000"> </label><br>
-  <label> 인생 목표 (예: 결혼:31, 은퇴:60): <input type="text" id="lifeGoals" value="결혼:31, 집구입:36"> </label><br>
-  <button onclick="runSimulation()">계산하기</button>
 
-  <div id="goalMessage"></div>
-  <canvas id="assetChart" width="800" height="300"></canvas>
-  <table id="resultTable"></table>
+<div class="container">
+  <aside class="sidebar">
+    <h1>🚀Roadmap </h1>
+    
+    <div class="input-group">
+      <label>시작 년도 / 현재 나이</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="number" id="startYear" readonly style="background: #f1f5f9; cursor: not-allowed;">
+        <input type="number" id="baseAge" placeholder="예: 28" oninput="runSimulation()">
+      </div>
+    </div>
 
-  <script>
-function formatWon(value) {
-  value = Math.round(value);
-  const eok = Math.floor(value / 10000);
-  const man = value % 10000;
-  if (eok > 0 && man === 0) {
-    return `${eok}억`;
-  } else if (eok > 0) {
-    return `${eok}억${man}만원`;
-  } else {
-    return `${man}만원`;
-  }
+    <div class="slider-container">
+      <label>기본 월 저축액: <span id="savingVal" style="color:var(--primary)">0</span>만원</label>
+      <input type="range" id="baseSaving" min="0" max="2000" step="10" value="0" oninput="runSimulation()">
+    </div>
+
+    <div class="input-group">
+      <label>초기 자산 (만원)</label>
+      <input type="number" id="initialAsset" placeholder="예: 5000" oninput="runSimulation()">
+    </div>
+
+    <div class="input-group">
+      <label>수익률 (%): 평상시 / 위기 시</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="number" id="normalRate" placeholder="예: 8" oninput="runSimulation()">
+        <input type="number" id="crisisRate" placeholder="예: 30" oninput="runSimulation()">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>경제 위기 연도 (쉼표 구분)
+        <span class="tooltip">ⓘ<span class="tooltiptext">년도를 직접 입력하거나, 아래 결과 표에서 년도를 더블클릭하여 바로 지정/해제할 수 있습니다.</span></span>
+      </label>
+      <input type="text" id="crisisYears" placeholder="예: 2030, 2040" oninput="runSimulation()">
+    </div>
+
+    <h2>🏆 목표 자산 (억 단위)</h2>
+    <div style="display: flex; gap: 5px;">
+      <input type="number" id="goal1" placeholder="1차" oninput="runSimulation()">
+      <input type="number" id="goal2" placeholder="2차" oninput="runSimulation()">
+      <input type="number" id="goal3" placeholder="3차" oninput="runSimulation()">
+    </div>
+
+    <h2>👨‍👩‍👧‍👦 가족 구성원 <button class="btn-add" style="width: auto; padding: 2px 10px;" onclick="addFamily()">+ 추가</button></h2>
+    <div id="familyList"></div>
+
+    <h2>💰 저축 변동 구간 
+      <span class="tooltip">ⓘ<span class="tooltiptext">이직, 승진, 은퇴 등으로 저축액이 크게 변동될 것이 예상되는 나이 구간을 추가하세요.</span></span>
+      <button class="btn-add" style="width: auto; padding: 2px 10px;" onclick="addInterval()">+ 추가</button>
+    </h2>
+    <div id="intervalList"></div>
+
+    <h2>✨ 인생 이벤트 
+      <span class="tooltip">ⓘ<span class="tooltiptext">지출은 마이너스(예: -5000), 성과급/상속 등 수입은 플러스(예: 3000)로 입력하세요.</span></span>
+      <button class="btn-add" style="width: auto; padding: 2px 10px;" onclick="addEvent()">+ 추가</button>
+    </h2>
+    <div id="eventList"></div>
+
+    <button class="btn-save" onclick="saveToImage()">🖼 결과 로드맵 저장하기</button>
+  </aside>
+
+  <main class="main-content" id="mainSection">
+    <div class="card-panel" id="resultPanel">
+      <div id="emptyState">
+        <div style="font-size: 4rem; margin-bottom: 20px;">📊</div>
+        <h2 style="border:none; justify-content:center; padding:0;">데이터를 입력해주세요.</h2>
+        <p>왼쪽 설정창에서 정보를 입력하면<br>자산 로드맵이 이곳에 나타납니다.</p>
+      </div>
+
+      <div id="goalSummary">
+        <div class="goal-badge"><h3>1차 목표</h3><p id="res1">-</p></div>
+        <div class="goal-badge"><h3>2차 목표</h3><p id="res2">-</p></div>
+        <div class="goal-badge"><h3>3차 목표</h3><p id="res3">-</p></div>
+      </div>
+      
+      <div class="chart-container" id="chartContainer">
+        <canvas id="assetChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper" id="tableContainer">
+      <table id="resultTable"></table>
+    </div>
+  </main>
+</div>
+
+<script>
+let chart;
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('startYear').value = new Date().getFullYear();
+  document.getElementById('savingVal').innerText = document.getElementById('baseSaving').value;
+});
+
+function addFamily() {
+  const div = document.createElement('div'); div.className = 'dynamic-item';
+  div.innerHTML = `<button class="remove-btn" onclick="this.parentElement.remove(); runSimulation();">✖</button>
+    <div style="display:flex; gap:5px;"><input type="text" class="f-name" placeholder="예: 배우자" oninput="runSimulation()"><input type="number" class="f-age" placeholder="나이" oninput="runSimulation()"></div>`;
+  document.getElementById('familyList').appendChild(div);
+}
+function addInterval() {
+  const div = document.createElement('div'); div.className = 'dynamic-item';
+  div.innerHTML = `<button class="remove-btn" onclick="this.parentElement.remove(); runSimulation();">✖</button>
+    <div style="display:flex; gap:5px;"><input type="number" class="i-from" placeholder="부터" oninput="runSimulation()"><input type="number" class="i-to" placeholder="까지" oninput="runSimulation()"><input type="number" class="i-amount" placeholder="금액" oninput="runSimulation()"></div>`;
+  document.getElementById('intervalList').appendChild(div);
+}
+function addEvent() {
+  const div = document.createElement('div'); div.className = 'dynamic-item';
+  div.innerHTML = `<button class="remove-btn" onclick="this.parentElement.remove(); runSimulation();">✖</button>
+    <input type="text" class="e-name" placeholder="이벤트명" oninput="runSimulation()"><div style="display:flex; gap:5px; margin-top:5px;"><input type="number" class="e-age" placeholder="나이" oninput="runSimulation()"><input type="number" class="e-cost" placeholder="금액(만)" oninput="runSimulation()"></div>`;
+  document.getElementById('eventList').appendChild(div);
 }
 
-let chart;
+// 💥 위기 년도 토글 함수 (새로 추가)
+function toggleCrisis(year) {
+  const input = document.getElementById('crisisYears');
+  let yearsArr = input.value.split(',')
+    .map(y => y.trim())
+    .filter(y => y !== "");
+  
+  const yearStr = year.toString();
+  if (yearsArr.includes(yearStr)) {
+    yearsArr = yearsArr.filter(y => y !== yearStr);
+  } else {
+    yearsArr.push(yearStr);
+    yearsArr.sort((a, b) => parseInt(a) - parseInt(b));
+  }
+  
+  input.value = yearsArr.join(', ');
+  runSimulation();
+}
+
+function formatWon(val, showWon = true) {
+  const absVal = Math.round(Math.abs(val)); const eok = Math.floor(absVal / 10000); const man = absVal % 10000;
+  let res = val < 0 ? "-" : (val > 0 && !showWon ? "+" : "");
+  if (eok > 0) res += `${eok}억${man > 0 ? ' ' + man + '만' : ''}`; else res += `${man}만`;
+  return showWon ? res + "원" : res;
+}
 
 function runSimulation() {
-  const startYear = parseInt(document.getElementById('startYear').value);
-  const startAge = parseInt(document.getElementById('startAge').value);
-  const endAge = parseInt(document.getElementById('endAge').value);
-  const endYear = startYear + (endAge - startAge);
-  const initial = parseFloat(document.getElementById('initial').value);
-  const saving = parseFloat(document.getElementById('saving').value) * 12; // 월 입력 → 연으로 계산
-  const normalRate = parseFloat(document.getElementById('normalRate').value) / 100;
-  const crisisRate = parseFloat(document.getElementById('crisisRate').value) / 100;
-  const crisisYears = document.getElementById('crisisYears').value.split(',').map(y => parseInt(y.trim()));
-  const goalAsset = parseFloat(document.getElementById('goalAsset').value);
-  const lifeGoalInput = document.getElementById('lifeGoals').value;
-
-  const lifeGoalMap = {};
-  lifeGoalInput.split(',').forEach(pair => {
-    const [name, age] = pair.trim().split(':');
-    if (name && age) lifeGoalMap[parseInt(age.trim())] = name.trim();
-  });
-
-  let currentAsset = initial;
-  let tableHTML = `<tr><th>나이</th><th>년도</th><th>위기?</th><th>수익률</th><th>저축액</th><th>총 자산</th><th>인생 목표</th></tr>`;
-
-  const years = [];
-  const assets = [];
-  const pointColors = [];
-  const tooltips = [];
-  let goalReached = false;
-  let goalYear = null;
-  let goalAge = null;
-
-  for (let year = startYear, age = startAge; age <= endAge; year++, age++) {
-    const isCrisis = crisisYears.includes(year);
-    const isLifeGoal = lifeGoalMap.hasOwnProperty(age);
-    const rate = isCrisis ? crisisRate : normalRate;
-    currentAsset = currentAsset * (1 + rate) + saving;
-
-    if (!goalReached && currentAsset >= goalAsset) {
-      goalReached = true;
-      goalYear = year;
-      goalAge = age;
-    }
-
-    tableHTML += `<tr>
-      <td>${age}</td>
-      <td>${year}</td>
-      <td>${isCrisis ? '💣' : ''}</td>
-      <td>${(rate * 100).toFixed(2)}%</td>
-      <td>${formatWon(saving)}</td>
-      <td>${formatWon(currentAsset)}</td>
-      <td>${isLifeGoal ? '⭐ ' + lifeGoalMap[age] : ''}</td>
-    </tr>`;
-
-    years.push(year);
-    assets.push(currentAsset);
-
-    if (goalReached && year === goalYear) {
-      pointColors.push('green');
-      tooltips.push(`🎯 목표 자산 ${formatWon(goalAsset)}을 ${goalYear}년 (${goalAge}세)에 달성`);
-    } else if (isLifeGoal) {
-      pointColors.push('gold');
-      tooltips.push(`⭐ ${lifeGoalMap[age]} (${year}년, ${age}세)`);
-    } else if (isCrisis) {
-      pointColors.push('red');
-      tooltips.push(`💣 경제위기 (${year}년)`);
-    } else {
-      pointColors.push('rgba(54, 162, 235, 1)');
-      tooltips.push(null);
-    }
+  const baseSaving = parseFloat(document.getElementById('baseSaving').value);
+  document.getElementById('savingVal').innerText = baseSaving;
+  const baseAge = parseInt(document.getElementById('baseAge').value);
+  const initialAssetInput = document.getElementById('initialAsset').value;
+  
+  if (!baseAge || initialAssetInput === "") {
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('goalSummary').style.display = 'none';
+    document.getElementById('chartContainer').style.display = 'none';
+    document.getElementById('tableContainer').style.display = 'none';
+    return;
   }
 
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('goalSummary').style.display = 'grid';
+  document.getElementById('chartContainer').style.display = 'block';
+  document.getElementById('tableContainer').style.display = 'block';
+
+  const startYear = parseInt(document.getElementById('startYear').value);
+  const initialAsset = parseFloat(initialAssetInput) || 0;
+  const normalRate = (parseFloat(document.getElementById('normalRate').value) || 0) / 100;
+  const crisisRate = (parseFloat(document.getElementById('crisisRate').value) || 0) / 100;
+  const crisisYears = document.getElementById('crisisYears').value.split(',').map(y => parseInt(y.trim()));
+  const goals = [
+    { amt: (parseFloat(document.getElementById('goal1').value) || 0) * 10000, val: document.getElementById('goal1').value + '억' },
+    { amt: (parseFloat(document.getElementById('goal2').value) || 0) * 10000, val: document.getElementById('goal2').value + '억' },
+    { amt: (parseFloat(document.getElementById('goal3').value) || 0) * 10000, val: document.getElementById('goal3').value + '억' }
+  ];
+
+  const families = Array.from(document.querySelectorAll('#familyList .dynamic-item')).map(div => ({ name: div.querySelector('.f-name').value || "가족", age: parseInt(div.querySelector('.f-age').value) || 0 }));
+  const intervals = Array.from(document.querySelectorAll('#intervalList .dynamic-item')).map(div => ({ from: parseInt(div.querySelector('.i-from').value) || 0, to: parseInt(div.querySelector('.i-to').value) || 0, amount: parseFloat(div.querySelector('.i-amount').value) || 0 }));
+  const events = Array.from(document.querySelectorAll('#eventList .dynamic-item')).map(div => ({ name: div.querySelector('.e-name').value || "", age: parseInt(div.querySelector('.e-age').value), cost: parseFloat(div.querySelector('.e-cost').value) || 0 }));
+
+  let currentAsset = initialAsset;
+  let tableHTML = `<thead><tr><th>년도</th><th>나(나이)</th>`;
+  families.forEach(f => tableHTML += `<th>${f.name}</th>`);
+  tableHTML += `<th>월저축</th><th>이벤트</th><th>총 자산</th></tr></thead><tbody>`;
+
+  const years = [], assets = [], goalReachPoints = [null, null, null], pointStyles = [], pointRadius = [], pointColors = [];
+
+  for (let i = 0; i <= 60; i++) {
+    const year = startYear + i, myAge = baseAge + i;
+    if (myAge > 100) break;
+    let monthlySaving = baseSaving;
+    for (const interval of intervals) { if (myAge >= interval.from && myAge <= interval.to) { monthlySaving = interval.amount; break; } }
+    let yearlyEventChange = 0, eventTexts = [];
+    events.forEach(e => {
+      if (e.age === myAge) {
+        yearlyEventChange += e.cost;
+        const color = e.cost < 0 ? 'var(--danger)' : 'var(--blue)';
+        eventTexts.push(`<span style="color:${color}">${e.name}(${formatWon(e.cost, false)})</span>`);
+      }
+    });
+    const isCrisis = crisisYears.includes(year);
+    const rate = isCrisis ? crisisRate : normalRate;
+    currentAsset = (currentAsset + (monthlySaving * 12) + yearlyEventChange) * (1 + rate);
+
+    let pStyle = 'circle', pRad = 3, pCol = isCrisis ? '#ef4444' : '#4f46e5';
+    if (isCrisis) pRad = 6;
+    goals.forEach((g, idx) => {
+      if (g.amt > 0 && currentAsset >= g.amt && goalReachPoints[idx] === null) {
+        goalReachPoints[idx] = { year, age: myAge, val: g.val };
+        pStyle = 'rectRot'; pRad = 14; pCol = '#f59e0b';
+      }
+    });
+
+    const crisisMark = isCrisis ? ' <span style="font-size:0.75rem;">💣</span>' : '';
+    const yearStyle = isCrisis ? 'style="color:var(--danger); font-weight:bold;"' : '';
+
+    tableHTML += `<tr>
+      <td class="year-cell" ${yearStyle} ondblclick="toggleCrisis(${year})" title="더블클릭하여 위기년도 지정/해제">
+        ${year}년${crisisMark}
+      </td>
+      <td>${myAge}세</td>
+      ${families.map(f => `<td>${f.age + i}세</td>`).join('')}
+      <td>${formatWon(monthlySaving, false)}</td>
+      <td style="line-height:1.4">${eventTexts.join('<br>')}</td>
+      <td style="font-weight:bold">${formatWon(currentAsset)}</td>
+    </tr>`;
+    years.push(`${year}(${myAge})`); assets.push(currentAsset);
+    pointStyles.push(pStyle); pointRadius.push(pRad); pointColors.push(pCol);
+  }
   document.getElementById('resultTable').innerHTML = tableHTML;
+  [0, 1, 2].forEach(i => {
+    const resEl = document.getElementById(`res${i+1}`);
+    resEl.innerHTML = goalReachPoints[i] ? `${goalReachPoints[i].year}년(${goalReachPoints[i].age}세)<br>${goalReachPoints[i].val} 달성` : "-";
+  });
+  updateChart(years, assets, pointStyles, pointRadius, pointColors);
+}
 
-  const msg = goalReached ? `🎯 목표 자산 ${formatWon(goalAsset)}을 ${goalYear}년 (${goalAge}세)에 달성했습니다!`
-                           : `아쉽게도 ${endYear}년까지 목표 자산을 달성하지 못했습니다.`;
-  document.getElementById('goalMessage').innerText = msg;
-
-  if (chart) chart.destroy();
+function updateChart(labels, data, pointStyles, pointRadius, pointColors) {
   const ctx = document.getElementById('assetChart').getContext('2d');
+  if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: years,
+      labels: labels,
       datasets: [{
-        label: '총 자산 (만원)',
-        data: assets,
-        borderColor: 'rgba(54, 162, 235, 1)',
-        backgroundColor: 'transparent',
-        pointBackgroundColor: pointColors,
-        pointRadius: 5,
-        borderWidth: 2,
-        tension: 0.4
+        label: '자산 흐름', data: data, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 102, 229, 0.05)',
+        fill: true, tension: 0.3, pointStyle: pointStyles, pointRadius: pointRadius, pointBackgroundColor: pointColors, pointBorderColor: '#fff', pointBorderWidth: (context) => pointRadius[context.dataIndex] > 6 ? 2 : 1
       }]
     },
     options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      },
-      plugins: {
-        tooltip: {
-          displayColors: false,
-          callbacks: {
-            title: function(ctx) {
-              return `${ctx[0].label}년`;
-            },
-            label: function(ctx) {
-              const value = formatWon(ctx.raw);
-              const extra = tooltips[ctx.dataIndex];
-              if (extra) {
-                return [`${extra}`, `총 자산: ${value}`];
-              } else {
-                return `총 자산: ${value}`;
-              }
-            }
-          }
-        }
-      }
+      responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: { callbacks: { label: (ctx) => ` 자산: ${formatWon(ctx.raw)}` } } },
+      scales: { y: { ticks: { callback: (val) => val >= 10000 ? (val/10000).toFixed(0) + '억' : val + '만' } } }
     }
   });
 }
-  </script>
+
+function saveToImage() {
+  const target = document.getElementById('mainSection');
+  html2canvas(target, { 
+    scale: 2, 
+    backgroundColor: "#f3f4f6",
+    useCORS: true,
+    onclone: (clonedDoc) => {
+      const tableWrapper = clonedDoc.getElementById('tableContainer');
+      if (tableWrapper) {
+        tableWrapper.style.maxHeight = 'none';
+        tableWrapper.style.overflow = 'visible';
+      }
+    }
+  }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `life-roadmap-final-report.png`;
+    link.href = canvas.toDataURL('image/png'); 
+    link.click();
+  });
+}
+</script>
 </body>
 </html>
